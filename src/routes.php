@@ -22,6 +22,7 @@ return function (App $app) {
         $result = $stmt->fetchAll();
         return $response->withJson(["status" => "success", "data" => $result], 200);
     });
+   
 
     $app->get("/api/v1/penginap/nama/{nama}", function (Request $request, Response $response, $args) {
         $nama = $args['nama'];
@@ -97,8 +98,6 @@ return function (App $app) {
         return $response->withJson(["status" => "failed", "data" => "0"], 200);
     });
     
-    
-
     $app->post("/api/v1/penginap/", function (Request $request, Response $response) {
         $contentType = $request->getHeaderLine('Content-Type');
         $data = $request->getBody()->getContents();
@@ -175,7 +174,58 @@ return function (App $app) {
         return $response->withJson(["status" => "failed", "data" => "0"], 200);
     });
     
+    /**
+     * Kamar Start
+     */
+    // $app->get("/api/v1/kamar", function (Request $request, Response $response) {
+    //     $sql = "SELECT * FROM kamar";
+    //     $stmt = $this->db->prepare($sql);
+    //     $stmt->execute();
+    //     $result = $stmt->fetchAll();
+    //     return $response->withJson(["status" => "success", "data" => $result], 200);
+    // });
+
+   $app->get("/api/v1/kamar", function (Request $request, Response $response, $args) {
+    // Retrieve all data from kamar table
+    $sql = "SELECT k.*, t.nama_tipe, t.harga_per_malam
+            FROM kamar k
+            JOIN tipe t ON k.id_tipe = t.id_tipe";
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute();
+    $results = $stmt->fetchAll();
     
+    if (empty($results)) {
+        return $response->withJson(["status" => "failed", "data" => "No kamar found"], 404);
+    }
+    
+    $responsePayload = [];
+    foreach ($results as $result) {
+        $id_tipe = $result['id_tipe'];
+        
+        // Retrieve list of fasilitas for each tipe
+        $sql = "SELECT f.id_fasilitas, f.nama_fasilitas
+                FROM fasilitas_tipe ft
+                JOIN fasilitas f ON ft.id_fasilitas = f.id_fasilitas
+                WHERE ft.id_tipe = :id_tipe";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':id_tipe', $id_tipe);
+        $stmt->execute();
+        $fasilitas = $stmt->fetchAll();
+        
+        $kamarData = [
+            "id_kamar" => $result['id_kamar'],
+            "nama_tipe" => $result['nama_tipe'],
+            "id_penginap" => $result['id_penginap'],
+            "harga_per_malam" => $result['harga_per_malam'],
+            "daftar_fasilitas" => $fasilitas
+        ];
+        
+        $responsePayload[] = $kamarData;
+    }
+    
+    return $response->withJson(["status" => "success", "data" => $responsePayload], 200);
+});
+
     $app->get("/api/v1/kamar/{id_kamar}", function (Request $request, Response $response, $args) {
         $id_kamar = $args['id_kamar'];
         
@@ -256,4 +306,11 @@ return function (App $app) {
         return $response->withJson(["status" => "failed", "data" => "0"], 200);
     });
     
+    $app->get("/api/v1/tipe", function(Request $request, Response $response, $args){
+        $sql = "SELECT * FROM tipe";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+        return $response->withJson(["status" => "success", "data" => $result], 200);
+    });
 };
