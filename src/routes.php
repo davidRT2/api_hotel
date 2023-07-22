@@ -3,7 +3,7 @@
 use Slim\App;
 use Slim\Http\Request;
 use Slim\Http\Response;
-
+// header('Access-Control-Allow-Origin: *');
 return function (App $app) {
     $container = $app->getContainer();
 
@@ -260,11 +260,11 @@ return function (App $app) {
     $app->post("/api/v1/kamar", function (Request $request, Response $response) {
         $contentType = $request->getHeaderLine('Content-Type');
         $data = $request->getBody()->getContents();
-    
+
         if (empty($data)) {
             return $response->withJson(["status" => "failed", "data" => "No data provided"], 400);
         }
-    
+
         if (strpos($contentType, 'application/json') !== false) {
             // Data dalam format JSON
             $dataArray = json_decode($data, true);
@@ -280,10 +280,10 @@ return function (App $app) {
         } else {
             return $response->withJson(["status" => "failed", "data" => "Unsupported data format"], 400);
         }
-    
+
         // Memeriksa apakah data yang dibutuhkan ada
         $requiredFields = ['id_kamar', 'id_tipe'];
-    
+
         // Jika menerima banyak baris JSON, pastikan untuk melakukan iterasi pada setiap data
         foreach ($dataArray as $data) {
             foreach ($requiredFields as $field) {
@@ -291,16 +291,16 @@ return function (App $app) {
                     return $response->withJson(["status" => "failed", "data" => "Missing required field: $field"], 400);
                 }
             }
-    
+
             $sqlInsert = "INSERT INTO kamar (id_kamar, id_tipe) VALUES (:id_kamar, :id_tipe)";
             $stmtInsert = $this->db->prepare($sqlInsert);
-    
+
             $stmtInsert->bindValue(':id_kamar', $data['id_kamar']);
             $stmtInsert->bindValue(':id_tipe', $data['id_tipe']);
-    
+
             try {
                 $this->db->beginTransaction();
-    
+
                 if ($stmtInsert->execute()) {
                     $this->db->commit();
                 } else {
@@ -312,10 +312,10 @@ return function (App $app) {
                 return $response->withJson(["status" => "failed", "data" => "Error executing SQL statement: " . $e->getMessage()], 500);
             }
         }
-    
+
         return $response->withJson(["status" => "success", "data" => "1"], 200);
     });
-    
+
 
     /**
      * Kamar End
@@ -368,5 +368,23 @@ return function (App $app) {
         $stmt->execute();
         $result = $stmt->fetchAll();
         return $response->withJson(["status" => "success", "data" => $result], 200);
+    });
+    $app->get("/api/v1/tipe/{key}", function (Request $request, Response $response, $args) {
+        // Mengakses parameter key dari URL
+        $key = $args['key'];
+
+        // Lakukan query untuk mendapatkan data sesuai dengan nilai key
+        $sql = "SELECT * FROM tipe WHERE id_tipe = :key";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':key', $key);
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+
+        // Cek apakah data ditemukan atau tidak
+        if (count($result) > 0) {
+            return $response->withJson(["status" => "success", "data" => $result], 200);
+        } else {
+            return $response->withJson(["status" => "failed", "message" => "Data not found"], 404);
+        }
     });
 };
